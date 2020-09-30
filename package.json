@@ -1,0 +1,23 @@
+{
+  "name": "ChildGear",
+  "version": "1.0.0",
+  "description": "Use adult equipment as child.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hylian-modding/OOTChildGear.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hylian-modding/OOTChildGear/issues"
+  },
+  "homepage": "https://github.com/hylian-modding/OOTChildGear#readme",
+  "modloader64_deps": {
+    "Z64Lib": "https://github.com/hylian-modding/ML64-Z64Lib.git"
+  }
+}
