@@ -16,7 +16,7 @@ class ChildGear implements IPlugin {
     pluginName?: string | undefined;
     @InjectCore()
     core!: IOOTCore;
-    kokiri: number = 0;
+    kokiri: number = 0x8083CAF8;
     config!: ChildGearConfig;
 
     preinit(): void {

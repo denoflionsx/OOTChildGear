@@ -1,6 +1,6 @@
 {
   "name": "ChildGear",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Use adult equipment as child.",
   "main": "index.js",
   "scripts": {
