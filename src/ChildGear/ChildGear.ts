@@ -33,9 +33,6 @@ class ChildGear implements IPlugin {
         let buf = fse.readFileSync(path.resolve(__dirname, "mm_fps_arm.zobj"));
         let r = zz.doRepoint(buf, 0, false, 0x80855000);
         this.ModLoader.emulator.rdramWriteBuffer(0x80855000, r);
-        this.ModLoader.utils.setTimeoutFrames(()=>{
-            fse.writeFileSync(global.ModLoader.startdir + "/ram.bin", this.ModLoader.emulator.rdramReadBuffer(0x0, 16 * 1024 * 1024));
-        }, 50);
     }
 
     onTick(frame?: number | undefined): void {
