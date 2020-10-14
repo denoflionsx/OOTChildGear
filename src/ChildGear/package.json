@@ -1,10 +1,11 @@
 {
   "name": "ChildGear",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "",
   "main": "ChildGear.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "ML64Postbuild": "tsc ./postbuild.ts --esModuleInterop && node ./postbuild.js"
   },
   "keywords": [],
   "author": "denoflions",
@@ -13,5 +14,10 @@
   "modloader64_deps": {
     "Z64Lib": "https://github.com/hylian-modding/ML64-Z64Lib.git"
   },
-  "updateUrl": "https://repo.modloader64.com/mods/ChildGear/update/update.json"
+  "updateUrl": "https://repo.modloader64.com/mods/ChildGear/update/update.json",
+  "modloader64_aliases": {
+    "Z64Lib": [
+      "libs/Z64Lib"
+    ]
+  }
 }

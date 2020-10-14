@@ -1,10 +1,11 @@
 {
   "name": "ChildGear",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Use adult equipment as child.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "ML64Postbuild": "tsc ./postbuild.ts --esModuleInterop && node ./postbuild.js"
   },
   "repository": {
     "type": "git",

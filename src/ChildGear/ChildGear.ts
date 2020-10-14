@@ -5,6 +5,9 @@ import { EventHandler } from 'modloader64_api/EventHandler';
 import { Z64RomTools } from 'Z64Lib/API/Z64RomTools';
 import { Z64LibSupportedGames } from 'Z64Lib/API/Z64LibSupportedGames';
 import { onViUpdate } from 'modloader64_api/PluginLifecycle';
+import fse from 'fs-extra';
+import { zzstatic } from 'Z64Lib/API/zzstatic';
+import path from 'path';
 
 interface ChildGearConfig {
     unlockItemsAsChild: boolean;
@@ -26,6 +29,13 @@ class ChildGear implements IPlugin {
     init(): void {
     }
     postinit(): void {
+        let zz = new zzstatic(Z64LibSupportedGames.OCARINA_OF_TIME);
+        let buf = fse.readFileSync(path.resolve(__dirname, "mm_fps_arm.zobj"));
+        let r = zz.doRepoint(buf, 0, false, 0x80855000);
+        this.ModLoader.emulator.rdramWriteBuffer(0x80855000, r);
+        this.ModLoader.utils.setTimeoutFrames(()=>{
+            fse.writeFileSync(global.ModLoader.startdir + "/ram.bin", this.ModLoader.emulator.rdramReadBuffer(0x0, 16 * 1024 * 1024));
+        }, 50);
     }
 
     onTick(frame?: number | undefined): void {
@@ -51,6 +61,21 @@ class ChildGear implements IPlugin {
                 p.writeUInt8(0x9, 0x0165B4 + i);
             }
             tools.recompressDMAFileIntoRom(rom, 33, p);
+            let hook = tools.decompressDMAFileFromRom(evt.rom, 120);
+
+            hook.writeUInt16BE(0x8080, 0xA72);
+            hook.writeUInt16BE(0x5218, 0xA76);
+
+            hook.writeUInt16BE(0x8080, 0xB66);
+            hook.writeUInt16BE(0x5210, 0xB6A);
+
+            hook.writeUInt16BE(0x0001, 0xBA8);
+
+            tools.recompressDMAFileIntoRom(rom, 120, hook);
+
+            let player = tools.decompressDMAFileFromRom(evt.rom, 34);
+            player.writeUInt32BE(0x8083C9E8, 0x22548);
+            tools.recompressDMAFileIntoRom(evt.rom, 34, player);
         }
     }
 
