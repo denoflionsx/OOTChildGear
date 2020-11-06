@@ -14,6 +14,7 @@ import { ProxySide, SidedProxy } from 'modloader64_api/SidedProxy/SidedProxy';
 
 interface ChildGearConfig {
     unlockItemsAsChild: boolean;
+    allowAdultToUseCrawlspace: boolean;
 }
 
 class ChildGear implements IPlugin {
@@ -33,6 +34,7 @@ class ChildGear implements IPlugin {
     preinit(): void {
         this.config = this.ModLoader.config.registerConfigCategory("ChildGear") as ChildGearConfig;
         this.ModLoader.config.setData("ChildGear", "unlockItemsAsChild", true);
+        this.ModLoader.config.setData("ChildGear", "allowAdultToUseCrawlspace", false);
     }
 
     init(): void {
@@ -91,6 +93,11 @@ class ChildGear implements IPlugin {
                 this.ModLoader.emulator.rdramWrite32(0x800F790C, 0x80837800 + 0x1D690);
                 this.ModLoader.emulator.rdramWrite32(0x800F790C + 8, 0x80837800 + 0x1D690);
             }
+            if (this.core.save.age === Age.ADULT && this.config.allowAdultToUseCrawlspace){
+                if (this.ModLoader.emulator.rdramRead8(0x80395B03) === 0x99){
+                    this.ModLoader.emulator.rdramWrite8(0x80395B03, 0x00);
+                }
+            }
         }
     }
 
@@ -135,6 +142,10 @@ class ChildGear implements IPlugin {
                 if (this.ModLoader.ImGui.beginMenu("ChildGear")) {
                     if (this.ModLoader.ImGui.menuItem("All items usable as child (caution)", undefined, this.config.unlockItemsAsChild, true)) {
                         this.config.unlockItemsAsChild = !this.config.unlockItemsAsChild;
+                        this.ModLoader.config.save();
+                    }
+                    if (this.ModLoader.ImGui.menuItem("Allow Adult to use crawlspaces", undefined, this.config.allowAdultToUseCrawlspace, true)){
+                        this.config.allowAdultToUseCrawlspace = !this.config.allowAdultToUseCrawlspace;
                         this.ModLoader.config.save();
                     }
                     this.ModLoader.ImGui.text("These settings require a game restart to take effect.");

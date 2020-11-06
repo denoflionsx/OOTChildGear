@@ -30,7 +30,8 @@
     "skipN64Logo": true
   },
   "ChildGear": {
-    "unlockItemsAsChild": true
+    "unlockItemsAsChild": true,
+    "allowAdultToUseCrawlspace": true
   },
   "OotOnline": {
     "mapTracker": false,

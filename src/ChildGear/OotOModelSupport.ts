@@ -53,6 +53,7 @@ export class OotOModelSupport {
             let evt = new OotOnline_ModelAllocation(this.child, Age.CHILD);
             bus.emit(OotOnlineEvents.ALLOCATE_MODEL_BLOCK, evt);
             this.child_alloc = evt;
+            bus.emit(OotOnlineEvents.FORCE_LOAD_MODEL_BLOCK, this.child_alloc.slot);
         }
         if (this.adult !== undefined) {
             this.ModLoader.logger.info("Detected adult custom model");
@@ -60,9 +61,8 @@ export class OotOModelSupport {
             let evt = new OotOnline_ModelAllocation(this.adult, Age.ADULT);
             bus.emit(OotOnlineEvents.ALLOCATE_MODEL_BLOCK, evt);
             this.adult_alloc = evt;
+            bus.emit(OotOnlineEvents.FORCE_LOAD_MODEL_BLOCK, this.adult_alloc.slot);
         }
-        bus.emit(OotOnlineEvents.FORCE_LOAD_MODEL_BLOCK, this.child_alloc.slot);
-        bus.emit(OotOnlineEvents.FORCE_LOAD_MODEL_BLOCK, this.adult_alloc.slot);
     }
 
     ageChangeCallback() {
