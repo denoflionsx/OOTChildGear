@@ -1,5 +1,5 @@
 import { IPlugin, IModLoaderAPI, ModLoaderEvents } from 'modloader64_api/IModLoaderAPI';
-import { IOOTCore } from 'modloader64_api/OOT/OOTAPI';
+import { Age, IOOTCore, OotEvents } from 'modloader64_api/OOT/OOTAPI';
 import { InjectCore } from 'modloader64_api/CoreInjection';
 import { EventHandler } from 'modloader64_api/EventHandler';
 import { Z64RomTools } from 'Z64Lib/API/Z64RomTools';
@@ -8,6 +8,9 @@ import { onViUpdate } from 'modloader64_api/PluginLifecycle';
 import fse from 'fs-extra';
 import { zzstatic } from 'Z64Lib/API/zzstatic';
 import path from 'path';
+import IMemory from 'modloader64_api/IMemory';
+import { OotOModelSupport } from './OotOModelSupport';
+import { ProxySide, SidedProxy } from 'modloader64_api/SidedProxy/SidedProxy';
 
 interface ChildGearConfig {
     unlockItemsAsChild: boolean;
@@ -21,18 +24,62 @@ class ChildGear implements IPlugin {
     core!: IOOTCore;
     kokiri: number = 0x8083CAF8;
     config!: ChildGearConfig;
+    saveLoaded: boolean = false;
+    adultBackup!: BackupCode;
+    childBackup!: BackupCode;
+    @SidedProxy(ProxySide.CLIENT, OotOModelSupport)
+    OotOSupport!: OotOModelSupport;
 
     preinit(): void {
         this.config = this.ModLoader.config.registerConfigCategory("ChildGear") as ChildGearConfig;
         this.ModLoader.config.setData("ChildGear", "unlockItemsAsChild", true);
     }
+
     init(): void {
     }
+
     postinit(): void {
         let zz = new zzstatic(Z64LibSupportedGames.OCARINA_OF_TIME);
         let buf = fse.readFileSync(path.resolve(__dirname, "mm_fps_arm.zobj"));
         let r = zz.doRepoint(buf, 0, false, 0x80855000);
         this.ModLoader.emulator.rdramWriteBuffer(0x80855000, r);
+    }
+
+    @EventHandler(OotEvents.ON_AGE_CHANGE)
+    onAgeChanged(age: Age) {
+        if (this.saveLoaded) {
+            this.ModLoader.payloadManager.parseFile(path.resolve(__dirname, "dlists.gsc"));
+            switch (age) {
+                case Age.ADULT:
+                    this.ModLoader.logger.debug("Setting up adult dlists.");
+                    fse.writeFileSync(path.resolve(__dirname, "temp.gsc"), this.childBackup.code);
+                    this.ModLoader.payloadManager.parseFile(path.resolve(__dirname, "temp.gsc"));
+                    this.ModLoader.payloadManager.parseFile(path.resolve(__dirname, "adult_gear.gsc"));
+                    break;
+                case Age.CHILD:
+                    this.ModLoader.logger.debug("Setting up child dlists.");
+                    fse.writeFileSync(path.resolve(__dirname, "temp.gsc"), this.adultBackup.code);
+                    this.ModLoader.payloadManager.parseFile(path.resolve(__dirname, "temp.gsc"));
+                    this.ModLoader.payloadManager.parseFile(path.resolve(__dirname, "child_gear.gsc"));
+                    break;
+            }
+            this.OotOSupport.ageChangeCallback();
+            this.ModLoader.emulator.invalidateCachedCode();
+        }
+    }
+
+    @EventHandler(ModLoaderEvents.ON_SOFT_RESET_PRE)
+    onReset(evt: any) {
+        this.saveLoaded = false;
+    }
+
+    @EventHandler(OotEvents.ON_SAVE_LOADED)
+    onSaveLoaded(evt: any) {
+        this.saveLoaded = true;
+        this.adultBackup = GameSharkBackup.backup_gs(fse.readFileSync(path.resolve(__dirname, "adult_gear.gsc")), this.ModLoader.emulator);
+        this.childBackup = GameSharkBackup.backup_gs(fse.readFileSync(path.resolve(__dirname, "child_gear.gsc")), this.ModLoader.emulator);
+        this.ModLoader.payloadManager.parseFile(path.resolve(__dirname, "dlists.gsc"));
+        this.onAgeChanged(this.core.save.age);
     }
 
     onTick(frame?: number | undefined): void {
@@ -73,6 +120,11 @@ class ChildGear implements IPlugin {
             let player = tools.decompressDMAFileFromRom(evt.rom, 34);
             player.writeUInt32BE(0x8083C9E8, 0x22548);
             tools.recompressDMAFileIntoRom(evt.rom, 34, player);
+
+            let stick = tools.decompressDMAFileFromRom(evt.rom, 401);
+            stick.writeUInt32BE(0x80854FA0, 0x334);
+            stick.writeUInt16BE(0x0001, 0x330);
+            tools.recompressDMAFileIntoRom(evt.rom, 401, stick);
         }
     }
 
@@ -95,5 +147,47 @@ class ChildGear implements IPlugin {
     }
 
 }
+
+export interface Code {
+    type: string;
+    addr: number;
+    payload: number;
+}
+
+export interface BackupCode {
+    code: string;
+}
+
+export class GameSharkBackup {
+    static backup_gs(data: Buffer, dest: IMemory) {
+        let backup = { code: "" } as BackupCode;
+        let original: string = data.toString();
+        let lines = original.split(/\r?\n/);
+        let commands = {
+            codes: [] as Code[],
+        };
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].substr(0, 2) === '--') {
+                continue;
+            }
+            let a = lines[i].substr(0, 2);
+            let b = lines[i].substr(2, lines[i].length);
+            let c = parseInt('0x' + b.split(' ')[0], 16);
+            let d = parseInt('0x' + b.split(' ')[1], 16);
+            commands.codes.push({ type: a, addr: c, payload: d });
+        }
+        for (let i = 0; i < commands.codes.length; i++) {
+            if (commands.codes[i].type === '80') {
+                let original = dest.rdramRead8(commands.codes[i].addr);
+                backup.code += "80" + commands.codes[i].addr.toString(16).toUpperCase() + " " + original.toString(16) + "\n";
+            } else if (commands.codes[i].type === '81') {
+                let original = dest.rdramRead16(commands.codes[i].addr);
+                backup.code += "81" + commands.codes[i].addr.toString(16).toUpperCase() + " " + original.toString(16) + "\n";
+            }
+        }
+        return backup;
+    }
+}
+
 
 module.exports = ChildGear;

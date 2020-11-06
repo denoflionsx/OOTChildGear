@@ -1,7 +1,7 @@
 {
   "ModLoader64": {
     "rom": "Legend of Zelda, The - Ocarina of Time (U) (V1.0) [!].z64",
-    "patch": "",
+    "patch": "vanillamizer.bps",
     "isServer": true,
     "isClient": true,
     "isAnalyticsServer": false,
@@ -40,6 +40,12 @@
   },
   "OotO_Halloween": {
     "adultCostume": "",
-    "childCostume": ""
+    "childCostume": "",
+    "textures": true,
+    "fog": true
+  },
+  "OotO_WorldEvents": {
+    "adultCostume": "Dark Hyrule Fantasy",
+    "childCostume": "Eevee Link"
   }
 }
