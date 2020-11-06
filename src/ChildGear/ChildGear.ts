@@ -23,7 +23,10 @@ class ChildGear implements IPlugin {
     pluginName?: string | undefined;
     @InjectCore()
     core!: IOOTCore;
-    kokiri: number = 0x8083CAF8;
+    kokiri: number = 0x80854ED8;
+    master: number = 0x80854E48;
+    kokiri_adult: number = 0x80854EC0;
+    master_adult: number = 0x80854EE0;
     config!: ChildGearConfig;
     saveLoaded: boolean = false;
     adultBackup!: BackupCode;
@@ -86,16 +89,26 @@ class ChildGear implements IPlugin {
 
     onTick(frame?: number | undefined): void {
         if (!this.core.helper.isTitleScreen() && this.core.helper.isSceneNumberValid()) {
-            if (this.ModLoader.emulator.rdramRead8(0x801DAB6D) === 0x3B && this.kokiri > 0) {
-                this.ModLoader.emulator.rdramWrite32(0x800F790C, this.kokiri);
-                this.ModLoader.emulator.rdramWrite32(0x800F790C + 8, this.kokiri);
+            if (this.core.save.age === Age.CHILD) {
+                if (this.ModLoader.emulator.rdramRead8(0x801DAB6D) === 0x3B) {
+                    this.ModLoader.emulator.rdramWrite32(0x800F790C, this.kokiri);
+                    this.ModLoader.emulator.rdramWrite32(0x800F790C + 8, this.kokiri);
+                } else {
+                    this.ModLoader.emulator.rdramWrite32(0x800F790C, this.master);
+                    this.ModLoader.emulator.rdramWrite32(0x800F790C + 8, this.master);
+                }
             } else {
-                this.ModLoader.emulator.rdramWrite32(0x800F790C, 0x80837800 + 0x1D690);
-                this.ModLoader.emulator.rdramWrite32(0x800F790C + 8, 0x80837800 + 0x1D690);
-            }
-            if (this.core.save.age === Age.ADULT && this.config.allowAdultToUseCrawlspace){
-                if (this.ModLoader.emulator.rdramRead8(0x80395B03) === 0x99){
-                    this.ModLoader.emulator.rdramWrite8(0x80395B03, 0x00);
+                if (this.ModLoader.emulator.rdramRead8(0x801DAB6D) === 0x3B) {
+                    this.ModLoader.emulator.rdramWrite32(0x800F790C, this.kokiri_adult);
+                    this.ModLoader.emulator.rdramWrite32(0x800F790C + 8, this.kokiri_adult);
+                } else {
+                    this.ModLoader.emulator.rdramWrite32(0x800F790C, this.master_adult);
+                    this.ModLoader.emulator.rdramWrite32(0x800F790C + 8, this.master_adult);
+                }
+                if (this.config.allowAdultToUseCrawlspace) {
+                    if (this.ModLoader.emulator.rdramRead8(0x80395B03) === 0x99) {
+                        this.ModLoader.emulator.rdramWrite8(0x80395B03, 0x00);
+                    }
                 }
             }
         }
@@ -103,36 +116,38 @@ class ChildGear implements IPlugin {
 
     @EventHandler(ModLoaderEvents.ON_ROM_PATCHED)
     onRomPatched(evt: any) {
+        let rom: Buffer = evt.rom;
+        let tools: Z64RomTools = new Z64RomTools(this.ModLoader, Z64LibSupportedGames.OCARINA_OF_TIME);
         if (this.config.unlockItemsAsChild) {
             this.ModLoader.logger.info("Unlocking all items as child. Beware.")
-            let rom: Buffer = evt.rom;
-            let tools: Z64RomTools = new Z64RomTools(this.ModLoader, Z64LibSupportedGames.OCARINA_OF_TIME);
             let p = tools.decompressDMAFileFromRom(rom, 33);
             for (let i = 0; i < 0x7F; i++) {
                 p.writeUInt8(0x9, 0x0165B4 + i);
             }
             tools.recompressDMAFileIntoRom(rom, 33, p);
-            let hook = tools.decompressDMAFileFromRom(evt.rom, 120);
-
-            hook.writeUInt16BE(0x8080, 0xA72);
-            hook.writeUInt16BE(0x5218, 0xA76);
-
-            hook.writeUInt16BE(0x8080, 0xB66);
-            hook.writeUInt16BE(0x5210, 0xB6A);
-
-            hook.writeUInt16BE(0x0001, 0xBA8);
-
-            tools.recompressDMAFileIntoRom(rom, 120, hook);
-
-            let player = tools.decompressDMAFileFromRom(evt.rom, 34);
-            player.writeUInt32BE(0x8083C9E8, 0x22548);
-            tools.recompressDMAFileIntoRom(evt.rom, 34, player);
-
-            let stick = tools.decompressDMAFileFromRom(evt.rom, 401);
-            stick.writeUInt32BE(0x80854FA0, 0x334);
-            stick.writeUInt16BE(0x0001, 0x330);
-            tools.recompressDMAFileIntoRom(evt.rom, 401, stick);
         }
+        let hook = tools.decompressDMAFileFromRom(evt.rom, 120);
+
+        hook.writeUInt16BE(0x8080, 0xA72);
+        hook.writeUInt16BE(0x5218, 0xA76);
+
+        hook.writeUInt16BE(0x8080, 0xB66);
+        hook.writeUInt16BE(0x5210, 0xB6A);
+
+        hook.writeUInt16BE(0x0001, 0xBA8);
+
+        tools.recompressDMAFileIntoRom(rom, 120, hook);
+
+        let start = 0x80854E20;
+        // Bunny Hood
+        let player = tools.decompressDMAFileFromRom(evt.rom, 34);
+        player.writeUInt32BE(start + 0xF0, 0x22548);
+        tools.recompressDMAFileIntoRom(evt.rom, 34, player);
+
+        let stick = tools.decompressDMAFileFromRom(evt.rom, 401);
+        stick.writeUInt32BE(start + 0x98, 0x334);
+        stick.writeUInt16BE(0x0001, 0x330);
+        tools.recompressDMAFileIntoRom(evt.rom, 401, stick);
     }
 
     @onViUpdate()
@@ -144,7 +159,7 @@ class ChildGear implements IPlugin {
                         this.config.unlockItemsAsChild = !this.config.unlockItemsAsChild;
                         this.ModLoader.config.save();
                     }
-                    if (this.ModLoader.ImGui.menuItem("Allow Adult to use crawlspaces", undefined, this.config.allowAdultToUseCrawlspace, true)){
+                    if (this.ModLoader.ImGui.menuItem("Allow Adult to use crawlspaces", undefined, this.config.allowAdultToUseCrawlspace, true)) {
                         this.config.allowAdultToUseCrawlspace = !this.config.allowAdultToUseCrawlspace;
                         this.ModLoader.config.save();
                     }
