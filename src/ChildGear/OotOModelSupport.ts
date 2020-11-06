@@ -111,7 +111,7 @@ export class OotOModelSupport {
             this.ModLoader.emulator.rdramWrite32(start + stick, (this.child_alloc.pointer + 0x51A8));
             // Boomerang
             let boom = 0xCC;
-            this.ModLoader.emulator.rdramWrite32(start + boom, (this.child_alloc.pointer + 0x5328));
+            this.ModLoader.emulator.rdramWrite32(start + boom, (this.child_alloc.pointer + 0x51B0));
         }
     }
 }
