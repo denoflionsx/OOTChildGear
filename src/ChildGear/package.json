@@ -1,6 +1,6 @@
 {
   "name": "ChildGear",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "",
   "main": "ChildGear.js",
   "scripts": {
@@ -15,9 +15,7 @@
     "Z64Lib": "https://github.com/hylian-modding/ML64-Z64Lib.git"
   },
   "updateUrl": "https://repo.modloader64.com/mods/ChildGear/update/update.json",
-  "modloader64_aliases": {
-    "Z64Lib": [
-      "libs/Z64Lib"
-    ]
-  }
+  "ModDependencies": [
+    "after?:OotOnline"
+  ]
 }

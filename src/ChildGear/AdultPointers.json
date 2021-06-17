@@ -1,0 +1,22 @@
+{
+    "deku_shield_hand": {
+        "normal": "800F77C8",
+        "lod": "800F77D0"
+    },
+    "deku_shield_back": {
+        "normal": "800F7808",
+        "lod": "800F7810"
+    },
+    "boomerang_hand": {
+        "normal": "800F79C8",
+        "lod": "800F79D0"
+    },
+    "stick_hand": {
+        "normal": "8007B8AE",
+        "lod": "8007B8AE"
+    },
+    "kokiri_hand": {
+        "normal": "800F7908",
+        "lod": "800F7910"
+    }
+}

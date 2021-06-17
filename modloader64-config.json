@@ -47,6 +47,17 @@
   },
   "OotO_WorldEvents": {
     "adultCostume": "Dark Hyrule Fantasy",
-    "childCostume": "Eevee Link"
+    "childCostume": "Ghost Link",
+    "equipmentLoadout": {
+      "Mirror Shield": "Frost Shield",
+      "Master Sword": "Laser Sword Blue",
+      "Kokiri Sword": "Miner's Sword",
+      "Biggoron Sword": "Great Frostblade"
+    },
+    "voice": ""
+  },
+  "OotO_WorldEvents_Server": {
+    "Z64OEventsActive": [],
+    "Z64OAssetsURL": []
   }
 }

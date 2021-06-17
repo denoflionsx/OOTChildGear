@@ -1,0 +1,26 @@
+{
+    "megaton_hammer_hand": {
+        "normal": "800F79BC",
+        "lod": "800F79C4"
+    },
+    "mirror_shield_back": {
+        "normal": "800F782C",
+        "lod": "800F7834"
+    },
+    "mirror_shield_hand": {
+        "normal": "800F77EC",
+        "lod": "800F77F4"
+    },
+    "sword_hand": {
+        "normal": "800F790C",
+        "lod": "800F7914"
+    },
+    "biggoron_sword_hand": {
+        "normal": "800F78BC",
+        "lod": "800F78C4"
+    },
+    "hookshot_third_person": {
+        "normal": "800F79AC",
+        "lod": "800F79B4"
+    }
+}

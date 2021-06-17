@@ -1,16 +1,17 @@
 import { IPlugin, IModLoaderAPI, ModLoaderEvents } from 'modloader64_api/IModLoaderAPI';
-import { Age, IOOTCore, OotEvents } from 'modloader64_api/OOT/OOTAPI';
+import { Age, IOOTCore, OotEvents, Sword } from 'modloader64_api/OOT/OOTAPI';
 import { InjectCore } from 'modloader64_api/CoreInjection';
-import { EventHandler } from 'modloader64_api/EventHandler';
-import { Z64RomTools } from 'Z64Lib/API/Z64RomTools';
-import { Z64LibSupportedGames } from 'Z64Lib/API/Z64LibSupportedGames';
+import { bus, EventHandler, EventsClient } from 'modloader64_api/EventHandler';
 import { onViUpdate } from 'modloader64_api/PluginLifecycle';
 import fse from 'fs-extra';
-import { zzstatic } from 'Z64Lib/API/zzstatic';
 import path from 'path';
-import IMemory from 'modloader64_api/IMemory';
-import { OotOModelSupport } from './OotOModelSupport';
-import { ProxySide, SidedProxy } from 'modloader64_api/SidedProxy/SidedProxy';
+import { Z64RomTools } from 'Z64Lib/API/Z64RomTools';
+import { Z64LibSupportedGames } from 'Z64Lib/API/Z64LibSupportedGames';
+import { IModelReference, registerModel, Z64OnlineEvents, Z64Online_LocalModelChangeProcessEvt, Z64Online_ModelAllocation } from './OotOAPI';
+import { CodePointer } from './CodePointer';
+import { OpaStack } from './OpaStack';
+import { DisplayListBuilder } from './DisplayListBuilder';
+import { AssemblyPointer } from './AssemblyPointer';
 
 interface ChildGearConfig {
     unlockItemsAsChild: boolean;
@@ -23,16 +24,13 @@ class ChildGear implements IPlugin {
     pluginName?: string | undefined;
     @InjectCore()
     core!: IOOTCore;
-    kokiri: number = 0x80854ED8;
-    master: number = 0x80854E48;
-    kokiri_adult: number = 0x80854EC0;
-    master_adult: number = 0x80854EE0;
     config!: ChildGearConfig;
-    saveLoaded: boolean = false;
-    adultBackup!: BackupCode;
-    childBackup!: BackupCode;
-    @SidedProxy(ProxySide.CLIENT, OotOModelSupport)
-    OotOSupport!: OotOModelSupport;
+    childPointers: Map<string, CodePointer> = new Map<string, CodePointer>();
+    adultPointers: Map<string, CodePointer> = new Map<string, CodePointer>();
+    opa!: OpaStack;
+    wasPaused: boolean = false;
+    lastEvt!: Z64Online_LocalModelChangeProcessEvt;
+    arm!: IModelReference;
 
     preinit(): void {
         this.config = this.ModLoader.config.registerConfigCategory("ChildGear") as ChildGearConfig;
@@ -41,80 +39,143 @@ class ChildGear implements IPlugin {
     }
 
     init(): void {
+        let o = fse.readJSONSync(path.resolve(__dirname, "ChildPointers.json"));
+        Object.keys(o).forEach((key: string) => {
+            this.childPointers.set(key, new CodePointer(this.ModLoader, parseInt(o[key].normal, 16), parseInt(o[key].lod, 16)));
+        });
+        let o2 = fse.readJSONSync(path.resolve(__dirname, "AdultPointers.json"));
+        Object.keys(o2).forEach((key: string) => {
+            this.adultPointers.set(key, new CodePointer(this.ModLoader, parseInt(o2[key].normal, 16), parseInt(o2[key].lod, 16)));
+        });
     }
 
     postinit(): void {
-        let zz = new zzstatic(Z64LibSupportedGames.OCARINA_OF_TIME);
-        let buf = fse.readFileSync(path.resolve(__dirname, "mm_fps_arm.zobj"));
-        let r = zz.doRepoint(buf, 0, false, 0x80855000);
-        this.ModLoader.emulator.rdramWriteBuffer(0x80855000, r);
     }
 
-    @EventHandler(OotEvents.ON_AGE_CHANGE)
-    onAgeChanged(age: Age) {
-        if (this.saveLoaded) {
-            this.ModLoader.payloadManager.parseFile(path.resolve(__dirname, "dlists.gsc"));
-            switch (age) {
-                case Age.ADULT:
-                    this.ModLoader.logger.debug("Setting up adult dlists.");
-                    fse.writeFileSync(path.resolve(__dirname, "temp.gsc"), this.childBackup.code);
-                    this.ModLoader.payloadManager.parseFile(path.resolve(__dirname, "temp.gsc"));
-                    this.ModLoader.payloadManager.parseFile(path.resolve(__dirname, "adult_gear.gsc"));
-                    break;
-                case Age.CHILD:
-                    this.ModLoader.logger.debug("Setting up child dlists.");
-                    fse.writeFileSync(path.resolve(__dirname, "temp.gsc"), this.adultBackup.code);
-                    this.ModLoader.payloadManager.parseFile(path.resolve(__dirname, "temp.gsc"));
-                    this.ModLoader.payloadManager.parseFile(path.resolve(__dirname, "child_gear.gsc"));
-                    break;
+    @EventHandler(EventsClient.ON_HEAP_READY)
+    onHeap() {
+        this.opa = new OpaStack(this.ModLoader, this.ModLoader.heap!.malloc(0xFF));
+    }
+
+    @EventHandler(Z64OnlineEvents.ON_MODEL_MANAGER_READY)
+    onReady() {
+        let buf = fse.readFileSync(path.resolve(__dirname, "mm_fps_arm.zobj"));
+        let ref = registerModel(buf, true);
+        ref.loadModel();
+        this.arm = ref;
+    }
+
+    @EventHandler(Z64OnlineEvents.LOCAL_MODEL_CHANGE_FINISHED)
+    onFinished(evt: Z64Online_LocalModelChangeProcessEvt) {
+        this.lastEvt = evt;
+        this.childPointers.forEach((value: CodePointer) => {
+            value.restorePointers();
+        });
+        this.adultPointers.forEach((value: CodePointer) => {
+            value.restorePointers();
+        });
+        this.opa.clear();
+        let child_left_hand_offset: number = 0x158;
+        let adult_left_hand_offset: number = 0x110;
+        let alias_offset: number = 0x5000;
+        let age = this.core.save.age;
+        if (age === Age.CHILD) {
+            // Megaton Hammer.
+            let builder: DisplayListBuilder = new DisplayListBuilder();
+            builder.addDE(evt.adult.pointer + alias_offset + 0x170);
+            builder.addDE01(evt.child.pointer + alias_offset + child_left_hand_offset);
+            this.childPointers.get("megaton_hammer_hand")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
+
+            // Mirror Shield Back
+            builder.addDE01(evt.adult.pointer + alias_offset + 0x288);
+            this.childPointers.get("mirror_shield_back")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
+
+            // Mirror Shield Hands
+            builder.addDE(evt.adult.pointer + alias_offset + 0x168);
+            builder.addDE01(evt.child.pointer + alias_offset + child_left_hand_offset);
+            this.childPointers.get("mirror_shield_hand")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
+
+            // Sword Hand
+            if (this.core.save.bButton === 0x3B) {
+                builder.addDE(evt.child.pointer + alias_offset + 0x180);
+                builder.addDE(evt.child.pointer + alias_offset + 0x188);
+            } else if (this.core.save.bButton === 0x3C) {
+                builder.addDE(evt.adult.pointer + alias_offset + 0x138);
+                builder.addDE(evt.adult.pointer + alias_offset + 0x140);
             }
-            this.OotOSupport.ageChangeCallback();
-            this.ModLoader.emulator.invalidateCachedCode();
+            builder.addDE01(evt.child.pointer + alias_offset + child_left_hand_offset);
+            this.childPointers.get("sword_hand")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
+
+            // Biggoron Sword
+            builder.addDE(evt.adult.pointer + alias_offset + 0x148);
+            builder.addDE(evt.adult.pointer + alias_offset + 0x150);
+            builder.addDE01(evt.child.pointer + alias_offset + child_left_hand_offset);
+            this.childPointers.get("biggoron_sword_hand")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
+
+            // Hookshot
+            builder.addDE(evt.adult.pointer + alias_offset + 0x190);
+            builder.addDE01(evt.child.pointer + alias_offset + child_left_hand_offset);
+            this.childPointers.get("hookshot_third_person")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
+            builder.addDE(this.arm.pointer + 0x10);
+            builder.addDE01(evt.adult.pointer + alias_offset + 0x208);
+            new AssemblyPointer(0x800F79AC, 0x800F79AC + 0x4).write(this.ModLoader, this.opa.writeDisplayList(builder.toBuffer()));
+
+            let gk = this.findGameplayKeep();
+            builder.addDE01(evt.adult.pointer + alias_offset + 0x218);
+            this.ModLoader.emulator.rdramWriteBuffer(gk + 0x39F0, builder.toBuffer());
+            builder.addDE(this.arm.pointer + 0x10);
+            builder.addDE01(evt.adult.pointer + alias_offset + 0x208);
+            this.ModLoader.emulator.rdramWriteBuffer(gk + 0x39F8, builder.toBuffer());
+            builder.addDE01(evt.adult.pointer + alias_offset + 0x210);
+            this.ModLoader.emulator.rdramWriteBuffer(gk + 0x3C90, builder.toBuffer());
+            builder.addDE01(evt.adult.pointer + alias_offset + 0x220);
+            this.ModLoader.emulator.rdramWriteBuffer(gk + 0x3FC8, builder.toBuffer());
+
+            new AssemblyPointer(0x8007AE8A, 0x8007AE8E).write(this.ModLoader, 0x040039F8);
+            new AssemblyPointer(0x8007B706, 0x8007B70A).write(this.ModLoader, 0x04003FC8);
+        }else if (age === Age.ADULT){
+            let builder: DisplayListBuilder = new DisplayListBuilder();
+
+            // Deku Shield hand
+            builder.addDE(evt.child.pointer + alias_offset + 0xD0);
+            builder.addDE01(evt.adult.pointer + alias_offset + adult_left_hand_offset);
+            this.adultPointers.get("deku_shield_hand")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
+
+            // Deku Shield back
+            builder.addDE(evt.adult.pointer + alias_offset + 0x130);
+            builder.pushMatrix(evt.adult.pointer + alias_offset + 0x10);
+            builder.addDE(evt.adult.pointer + alias_offset + 0x138);
+            builder.popMatrix();
+            builder.addDE01(evt.child.pointer + alias_offset + 0x278);
+            this.adultPointers.get("deku_shield_back")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
         }
     }
 
-    @EventHandler(ModLoaderEvents.ON_SOFT_RESET_PRE)
-    onReset(evt: any) {
-        this.saveLoaded = false;
+    findGameplayKeep() {
+        let obj_list: number = 0x801D9C44;
+        let obj_id = 0x00010000;
+        for (let i = 4; i < 0x514; i += 4) {
+            let value = this.ModLoader.emulator.rdramRead32(obj_list + i);
+            if (value === obj_id) {
+                return this.ModLoader.emulator.rdramRead32(obj_list + i + 4);
+            }
+        }
+        return -1;
     }
 
-    @EventHandler(OotEvents.ON_SAVE_LOADED)
-    onSaveLoaded(evt: any) {
-        this.saveLoaded = true;
-        this.adultBackup = GameSharkBackup.backup_gs(fse.readFileSync(path.resolve(__dirname, "adult_gear.gsc")), this.ModLoader.emulator);
-        this.childBackup = GameSharkBackup.backup_gs(fse.readFileSync(path.resolve(__dirname, "child_gear.gsc")), this.ModLoader.emulator);
-        this.ModLoader.payloadManager.parseFile(path.resolve(__dirname, "dlists.gsc"));
-        this.onAgeChanged(this.core.save.age);
-    }
 
     onTick(frame?: number | undefined): void {
-        if (!this.core.helper.isTitleScreen() && this.core.helper.isSceneNumberValid()) {
-            if (this.core.save.age === Age.CHILD) {
-                if (this.ModLoader.emulator.rdramRead8(0x801DAB6D) === 0x3B) {
-                    this.ModLoader.emulator.rdramWrite32(0x800F790C, this.kokiri);
-                    this.ModLoader.emulator.rdramWrite32(0x800F790C + 8, this.kokiri);
-                } else {
-                    this.ModLoader.emulator.rdramWrite32(0x800F790C, this.master);
-                    this.ModLoader.emulator.rdramWrite32(0x800F790C + 8, this.master);
-                }
-            } else {
-                if (this.ModLoader.emulator.rdramRead8(0x801DAB6D) === 0x3B) {
-                    this.ModLoader.emulator.rdramWrite32(0x800F790C, this.kokiri_adult);
-                    this.ModLoader.emulator.rdramWrite32(0x800F790C + 8, this.kokiri_adult);
-                } else {
-                    this.ModLoader.emulator.rdramWrite32(0x800F790C, this.master_adult);
-                    this.ModLoader.emulator.rdramWrite32(0x800F790C + 8, this.master_adult);
-                }
-                if (this.config.allowAdultToUseCrawlspace) {
-                    if (this.ModLoader.emulator.rdramRead8(0x80395B03) === 0x99) {
-                        this.ModLoader.emulator.rdramWrite8(0x80395B03, 0x00);
-                    }
-                }
+        if (this.core.helper.isPaused()) {
+            if (!this.wasPaused) {
+                this.wasPaused = true;
             }
+        } else if (this.wasPaused) {
+            this.ModLoader.utils.setTimeoutFrames(() => { this.onFinished(this.lastEvt) }, 20);
+            this.wasPaused = false;
         }
     }
 
-    @EventHandler(ModLoaderEvents.ON_ROM_PATCHED)
+    @EventHandler(ModLoaderEvents.ON_ROM_PATCHED_POST)
     onRomPatched(evt: any) {
         let rom: Buffer = evt.rom;
         let tools: Z64RomTools = new Z64RomTools(this.ModLoader, Z64LibSupportedGames.OCARINA_OF_TIME);
@@ -128,24 +189,18 @@ class ChildGear implements IPlugin {
         }
         let hook = tools.decompressDMAFileFromRom(evt.rom, 120);
 
-        hook.writeUInt16BE(0x8080, 0xA72);
-        hook.writeUInt16BE(0x5218, 0xA76);
+        hook.writeUInt16BE(0x0400, 0xA72);
+        hook.writeUInt16BE(0x39F0, 0xA76);
 
-        hook.writeUInt16BE(0x8080, 0xB66);
-        hook.writeUInt16BE(0x5210, 0xB6A);
+        hook.writeUInt16BE(0x0400, 0xB66);
+        hook.writeUInt16BE(0x3C90, 0xB6A);
 
         hook.writeUInt16BE(0x0001, 0xBA8);
 
         tools.recompressDMAFileIntoRom(rom, 120, hook);
 
-        let start = 0x80854E20;
-        // Bunny Hood
-        let player = tools.decompressDMAFileFromRom(evt.rom, 34);
-        player.writeUInt32BE(start + 0xF0, 0x22548);
-        tools.recompressDMAFileIntoRom(evt.rom, 34, player);
-
         let stick = tools.decompressDMAFileFromRom(evt.rom, 401);
-        stick.writeUInt32BE(start + 0x98, 0x334);
+        stick.writeUInt32BE(0x80854E20 + 0x98, 0x334);
         stick.writeUInt16BE(0x0001, 0x330);
         tools.recompressDMAFileIntoRom(evt.rom, 401, stick);
     }
@@ -172,48 +227,22 @@ class ChildGear implements IPlugin {
         }
     }
 
-}
-
-export interface Code {
-    type: string;
-    addr: number;
-    payload: number;
-}
-
-export interface BackupCode {
-    code: string;
-}
-
-export class GameSharkBackup {
-    static backup_gs(data: Buffer, dest: IMemory) {
-        let backup = { code: "" } as BackupCode;
-        let original: string = data.toString();
-        let lines = original.split(/\r?\n/);
-        let commands = {
-            codes: [] as Code[],
-        };
-        for (let i = 0; i < lines.length; i++) {
-            if (lines[i].substr(0, 2) === '--') {
-                continue;
-            }
-            let a = lines[i].substr(0, 2);
-            let b = lines[i].substr(2, lines[i].length);
-            let c = parseInt('0x' + b.split(' ')[0], 16);
-            let d = parseInt('0x' + b.split(' ')[1], 16);
-            commands.codes.push({ type: a, addr: c, payload: d });
-        }
-        for (let i = 0; i < commands.codes.length; i++) {
-            if (commands.codes[i].type === '80') {
-                let original = dest.rdramRead8(commands.codes[i].addr);
-                backup.code += "80" + commands.codes[i].addr.toString(16).toUpperCase() + " " + original.toString(16) + "\n";
-            } else if (commands.codes[i].type === '81') {
-                let original = dest.rdramRead16(commands.codes[i].addr);
-                backup.code += "81" + commands.codes[i].addr.toString(16).toUpperCase() + " " + original.toString(16) + "\n";
+    doesLinkObjExist(age: Age) {
+        let link_object_pointer: number = 0;
+        let obj_list: number = 0x801D9C44;
+        let obj_id = age === Age.ADULT ? 0x00140000 : 0x00150000;
+        for (let i = 4; i < 0x514; i += 4) {
+            let value = this.ModLoader.emulator.rdramRead32(obj_list + i);
+            if (value === obj_id) {
+                link_object_pointer = obj_list + i + 4;
+                break;
             }
         }
-        return backup;
+        if (link_object_pointer === 0) return { exists: false, pointer: 0 };
+        link_object_pointer = this.ModLoader.emulator.rdramRead32(link_object_pointer);
+        return { exists: this.ModLoader.emulator.rdramReadBuffer(link_object_pointer + 0x5000, 0xB).toString() === "MODLOADER64", pointer: link_object_pointer };
     }
-}
 
+}
 
 module.exports = ChildGear;
