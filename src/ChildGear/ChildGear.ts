@@ -80,6 +80,10 @@ class ChildGear implements IPlugin {
         let alias_offset: number = 0x5000;
         let age = this.core.save.age;
         if (age === Age.CHILD) {
+
+            new AssemblyPointer(0x8007AE8A, 0x8007AE8E).write(this.ModLoader, 0x040039F8);
+            new AssemblyPointer(0x8007B706, 0x8007B70A).write(this.ModLoader, 0x04003FC8);
+
             // Megaton Hammer.
             let builder: DisplayListBuilder = new DisplayListBuilder();
             builder.addDE(evt.adult.pointer + alias_offset + 0x170);
@@ -116,9 +120,6 @@ class ChildGear implements IPlugin {
             builder.addDE(evt.adult.pointer + alias_offset + 0x190);
             builder.addDE01(evt.child.pointer + alias_offset + child_left_hand_offset);
             this.childPointers.get("hookshot_third_person")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
-            builder.addDE(this.arm.pointer + 0x10);
-            builder.addDE01(evt.adult.pointer + alias_offset + 0x208);
-            new AssemblyPointer(0x800F79AC, 0x800F79AC + 0x4).write(this.ModLoader, this.opa.writeDisplayList(builder.toBuffer()));
 
             let gk = this.findGameplayKeep();
             builder.addDE01(evt.adult.pointer + alias_offset + 0x218);
@@ -130,10 +131,12 @@ class ChildGear implements IPlugin {
             this.ModLoader.emulator.rdramWriteBuffer(gk + 0x3C90, builder.toBuffer());
             builder.addDE01(evt.adult.pointer + alias_offset + 0x220);
             this.ModLoader.emulator.rdramWriteBuffer(gk + 0x3FC8, builder.toBuffer());
-
-            new AssemblyPointer(0x8007AE8A, 0x8007AE8E).write(this.ModLoader, 0x040039F8);
-            new AssemblyPointer(0x8007B706, 0x8007B70A).write(this.ModLoader, 0x04003FC8);
+            
         }else if (age === Age.ADULT){
+
+            new AssemblyPointer(0x8007AE8A, 0x8007AE8E).write(this.ModLoader, 0x06005370);
+            new AssemblyPointer(0x8007B706, 0x8007B70A).write(this.ModLoader, 0x06005220);
+
             let builder: DisplayListBuilder = new DisplayListBuilder();
 
             // Deku Shield hand
@@ -148,6 +151,19 @@ class ChildGear implements IPlugin {
             builder.popMatrix();
             builder.addDE01(evt.child.pointer + alias_offset + 0x278);
             this.adultPointers.get("deku_shield_back")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
+
+            let gk = this.findGameplayKeep();
+            builder.addDE01(evt.adult.pointer + alias_offset + 0x218);
+            this.ModLoader.emulator.rdramWriteBuffer(gk + 0x39F0, builder.toBuffer());
+            builder.addDE(evt.adult.pointer + alias_offset + 0x200);
+            builder.addDE01(evt.adult.pointer + alias_offset + 0x208);
+            this.ModLoader.emulator.rdramWriteBuffer(gk + 0x39F8, builder.toBuffer());
+            builder.addDE01(evt.adult.pointer + alias_offset + 0x210);
+            this.ModLoader.emulator.rdramWriteBuffer(gk + 0x3C90, builder.toBuffer());
+            builder.addDE01(evt.adult.pointer + alias_offset + 0x220);
+            this.ModLoader.emulator.rdramWriteBuffer(gk + 0x3FC8, builder.toBuffer());
+
+
         }
     }
 
