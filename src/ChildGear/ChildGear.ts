@@ -87,7 +87,7 @@ class ChildGear implements IPlugin {
             // Megaton Hammer.
             let builder: DisplayListBuilder = new DisplayListBuilder();
             builder.addDE(evt.adult.pointer + alias_offset + 0x170);
-            builder.addDE01(evt.child.pointer + alias_offset + child_left_hand_offset);
+            builder.addDE01(0x06000000 + alias_offset + child_left_hand_offset);
             this.childPointers.get("megaton_hammer_hand")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
 
             // Mirror Shield Back
@@ -96,29 +96,29 @@ class ChildGear implements IPlugin {
 
             // Mirror Shield Hands
             builder.addDE(evt.adult.pointer + alias_offset + 0x168);
-            builder.addDE01(evt.child.pointer + alias_offset + child_left_hand_offset);
+            builder.addDE01(0x06000000 + alias_offset + child_left_hand_offset);
             this.childPointers.get("mirror_shield_hand")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
 
             // Sword Hand
             if (this.core.save.bButton === 0x3B) {
-                builder.addDE(evt.child.pointer + alias_offset + 0x180);
-                builder.addDE(evt.child.pointer + alias_offset + 0x188);
+                builder.addDE(0x06000000 + alias_offset + 0x180);
+                builder.addDE(0x06000000 + alias_offset + 0x188);
             } else if (this.core.save.bButton === 0x3C) {
                 builder.addDE(evt.adult.pointer + alias_offset + 0x138);
                 builder.addDE(evt.adult.pointer + alias_offset + 0x140);
             }
-            builder.addDE01(evt.child.pointer + alias_offset + child_left_hand_offset);
+            builder.addDE01(0x06000000 + alias_offset + child_left_hand_offset);
             this.childPointers.get("sword_hand")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
 
             // Biggoron Sword
             builder.addDE(evt.adult.pointer + alias_offset + 0x148);
             builder.addDE(evt.adult.pointer + alias_offset + 0x150);
-            builder.addDE01(evt.child.pointer + alias_offset + child_left_hand_offset);
+            builder.addDE01(0x06000000 + alias_offset + child_left_hand_offset);
             this.childPointers.get("biggoron_sword_hand")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
 
             // Hookshot
             builder.addDE(evt.adult.pointer + alias_offset + 0x190);
-            builder.addDE01(evt.child.pointer + alias_offset + child_left_hand_offset);
+            builder.addDE01(0x06000000 + alias_offset + child_left_hand_offset);
             this.childPointers.get("hookshot_third_person")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
 
             let gk = this.findGameplayKeep();
@@ -141,13 +141,13 @@ class ChildGear implements IPlugin {
 
             // Deku Shield hand
             builder.addDE(evt.child.pointer + alias_offset + 0xD0);
-            builder.addDE01(evt.adult.pointer + alias_offset + adult_left_hand_offset);
+            builder.addDE01(0x06000000 + alias_offset + adult_left_hand_offset);
             this.adultPointers.get("deku_shield_hand")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
 
             // Deku Shield back
-            builder.addDE(evt.adult.pointer + alias_offset + 0x130);
-            builder.pushMatrix(evt.adult.pointer + alias_offset + 0x10);
-            builder.addDE(evt.adult.pointer + alias_offset + 0x138);
+            builder.addDE(0x06000000 + alias_offset + 0x130);
+            builder.pushMatrix(0x06000000 + alias_offset + 0x10);
+            builder.addDE(0x06000000 + alias_offset + 0x138);
             builder.popMatrix();
             builder.addDE01(evt.child.pointer + alias_offset + 0x278);
             this.adultPointers.get("deku_shield_back")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
