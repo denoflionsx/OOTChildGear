@@ -216,10 +216,12 @@ class ChildGear implements IPlugin {
 
         tools.recompressDMAFileIntoRom(rom, 120, hook);
 
+        /*
         let stick = tools.decompressDMAFileFromRom(evt.rom, 401);
         stick.writeUInt32BE(0x80854E20 + 0x98, 0x334);
         stick.writeUInt16BE(0x0001, 0x330);
         tools.recompressDMAFileIntoRom(evt.rom, 401, stick);
+        */
     }
 
     @onViUpdate()
