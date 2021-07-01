@@ -153,6 +153,11 @@ class ChildGear implements IPlugin {
             builder.addDE01(evt.child.pointer + alias_offset + 0x278);
             this.adultPointers.get("deku_shield_back")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
 
+            // Boomerang hand
+            builder.addDE(evt.child.pointer + alias_offset + 0x1B0);
+            builder.addDE01(segment_06 + alias_offset + adult_left_hand_offset);
+            this.adultPointers.get("boomerang_hand")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
+
             let gk = this.findGameplayKeep();
             builder.addDE01(evt.adult.pointer + alias_offset + 0x218);
             this.ModLoader.emulator.rdramWriteBuffer(gk + 0x39F0, builder.toBuffer());
