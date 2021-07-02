@@ -78,6 +78,7 @@ class ChildGear implements IPlugin {
         let child_left_hand_offset: number = 0x158;
         let adult_left_hand_offset: number = 0x110;
         let alias_offset: number = 0x5000;
+        let segment_06: number = 0x06000000;
         let age = this.core.save.age;
         if (age === Age.CHILD) {
 
@@ -87,7 +88,7 @@ class ChildGear implements IPlugin {
             // Megaton Hammer.
             let builder: DisplayListBuilder = new DisplayListBuilder();
             builder.addDE(evt.adult.pointer + alias_offset + 0x170);
-            builder.addDE01(evt.child.pointer + alias_offset + child_left_hand_offset);
+            builder.addDE01(segment_06 + alias_offset + child_left_hand_offset);
             this.childPointers.get("megaton_hammer_hand")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
 
             // Mirror Shield Back
@@ -96,29 +97,29 @@ class ChildGear implements IPlugin {
 
             // Mirror Shield Hands
             builder.addDE(evt.adult.pointer + alias_offset + 0x168);
-            builder.addDE01(evt.child.pointer + alias_offset + child_left_hand_offset);
+            builder.addDE01(segment_06 + alias_offset + child_left_hand_offset);
             this.childPointers.get("mirror_shield_hand")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
 
             // Sword Hand
             if (this.core.save.bButton === 0x3B) {
-                builder.addDE(evt.child.pointer + alias_offset + 0x180);
-                builder.addDE(evt.child.pointer + alias_offset + 0x188);
+                builder.addDE(segment_06 + alias_offset + 0x180);
+                builder.addDE(segment_06 + alias_offset + 0x188);
             } else if (this.core.save.bButton === 0x3C) {
                 builder.addDE(evt.adult.pointer + alias_offset + 0x138);
                 builder.addDE(evt.adult.pointer + alias_offset + 0x140);
             }
-            builder.addDE01(evt.child.pointer + alias_offset + child_left_hand_offset);
+            builder.addDE01(segment_06 + alias_offset + child_left_hand_offset);
             this.childPointers.get("sword_hand")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
 
             // Biggoron Sword
             builder.addDE(evt.adult.pointer + alias_offset + 0x148);
             builder.addDE(evt.adult.pointer + alias_offset + 0x150);
-            builder.addDE01(evt.child.pointer + alias_offset + child_left_hand_offset);
+            builder.addDE01(segment_06 + alias_offset + child_left_hand_offset);
             this.childPointers.get("biggoron_sword_hand")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
 
             // Hookshot
             builder.addDE(evt.adult.pointer + alias_offset + 0x190);
-            builder.addDE01(evt.child.pointer + alias_offset + child_left_hand_offset);
+            builder.addDE01(segment_06 + alias_offset + child_left_hand_offset);
             this.childPointers.get("hookshot_third_person")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
 
             let gk = this.findGameplayKeep();
@@ -134,23 +135,28 @@ class ChildGear implements IPlugin {
             
         }else if (age === Age.ADULT){
 
-            new AssemblyPointer(0x8007AE8A, 0x8007AE8E).write(this.ModLoader, 0x06005370);
-            new AssemblyPointer(0x8007B706, 0x8007B70A).write(this.ModLoader, 0x06005220);
+            new AssemblyPointer(0x8007AE8A, 0x8007AE8E).write(this.ModLoader, segment_06 + alias_offset + 0x370);
+            new AssemblyPointer(0x8007B706, 0x8007B70A).write(this.ModLoader, segment_06 + alias_offset + 0x220);
 
             let builder: DisplayListBuilder = new DisplayListBuilder();
 
             // Deku Shield hand
             builder.addDE(evt.child.pointer + alias_offset + 0xD0);
-            builder.addDE01(evt.adult.pointer + alias_offset + adult_left_hand_offset);
+            builder.addDE01(segment_06 + alias_offset + adult_left_hand_offset);
             this.adultPointers.get("deku_shield_hand")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
 
             // Deku Shield back
-            builder.addDE(evt.adult.pointer + alias_offset + 0x130);
-            builder.pushMatrix(evt.adult.pointer + alias_offset + 0x10);
-            builder.addDE(evt.adult.pointer + alias_offset + 0x138);
+            builder.addDE(segment_06 + alias_offset + 0x130);
+            builder.pushMatrix(segment_06 + alias_offset + 0x10);
+            builder.addDE(segment_06 + alias_offset + 0x138);
             builder.popMatrix();
             builder.addDE01(evt.child.pointer + alias_offset + 0x278);
             this.adultPointers.get("deku_shield_back")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
+
+            // Boomerang hand
+            builder.addDE(evt.child.pointer + alias_offset + 0x1B0);
+            builder.addDE01(segment_06 + alias_offset + adult_left_hand_offset);
+            this.adultPointers.get("boomerang_hand")!.setPointers(this.opa.writeDisplayList(builder.toBuffer()));
 
             let gk = this.findGameplayKeep();
             builder.addDE01(evt.adult.pointer + alias_offset + 0x218);
@@ -215,10 +221,12 @@ class ChildGear implements IPlugin {
 
         tools.recompressDMAFileIntoRom(rom, 120, hook);
 
+        /*
         let stick = tools.decompressDMAFileFromRom(evt.rom, 401);
         stick.writeUInt32BE(0x80854E20 + 0x98, 0x334);
         stick.writeUInt16BE(0x0001, 0x330);
         tools.recompressDMAFileIntoRom(evt.rom, 401, stick);
+        */
     }
 
     @onViUpdate()
