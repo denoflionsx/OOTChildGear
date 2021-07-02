@@ -1,6 +1,6 @@
 {
   "name": "ChildGear",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "",
   "main": "ChildGear.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "ML64Postbuild": "tsc ./postbuild.ts --esModuleInterop && node ./postbuild.js"
   },
   "keywords": [],
-  "author": "denoflions",
+  "author": "denoflions, Neirn",
   "license": "MIT",
   "core": "OcarinaofTime",
   "modloader64_deps": {
