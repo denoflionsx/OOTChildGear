@@ -1,6 +1,6 @@
 {
   "name": "ChildGear",
-  "version": "1.0.7",
+  "version": "1.0.9",
   "description": "",
   "main": "ChildGear.js",
   "scripts": {
@@ -9,6 +9,7 @@
   },
   "keywords": [],
   "author": "denoflions, Neirn",
+  "credits": "Aegiker",
   "license": "MIT",
   "core": "OcarinaofTime",
   "modloader64_deps": {
