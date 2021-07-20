@@ -16,6 +16,7 @@ import { AssemblyPointer } from './AssemblyPointer';
 interface ChildGearConfig {
     unlockItemsAsChild: boolean;
     allowAdultToUseCrawlspace: boolean;
+    allowChildToUseGauntletBlocks: boolean;
 }
 
 class ChildGear implements IPlugin {
@@ -31,11 +32,16 @@ class ChildGear implements IPlugin {
     wasPaused: boolean = false;
     lastEvt!: Z64Online_LocalModelChangeProcessEvt;
     arm!: IModelReference;
+    // Credit for research: Aegiker
+    blockPushCodeBackup!: Buffer;
+    blockPushCodeReplacement: Buffer = Buffer.from('24080000', 'hex');
+    blockPushCodeAddr: number = 0x80079B0C;
 
     preinit(): void {
         this.config = this.ModLoader.config.registerConfigCategory("ChildGear") as ChildGearConfig;
         this.ModLoader.config.setData("ChildGear", "unlockItemsAsChild", true);
         this.ModLoader.config.setData("ChildGear", "allowAdultToUseCrawlspace", false);
+        this.ModLoader.config.setData("ChildGear", "allowChildToUseGauntletBlocks", false);
     }
 
     init(): void {
@@ -55,6 +61,7 @@ class ChildGear implements IPlugin {
     @EventHandler(EventsClient.ON_HEAP_READY)
     onHeap() {
         this.opa = new OpaStack(this.ModLoader, this.ModLoader.heap!.malloc(0xFF));
+        this.blockPushCodeBackup = this.ModLoader.emulator.rdramReadBuffer(this.blockPushCodeAddr, this.blockPushCodeReplacement.byteLength);
     }
 
     @EventHandler(Z64OnlineEvents.ON_MODEL_MANAGER_READY)
@@ -133,6 +140,9 @@ class ChildGear implements IPlugin {
             builder.addDE01(evt.adult.pointer + alias_offset + 0x220);
             this.ModLoader.emulator.rdramWriteBuffer(gk + 0x3FC8, builder.toBuffer());
             
+            if (this.config.allowChildToUseGauntletBlocks){
+                this.ModLoader.emulator.rdramWriteBuffer(this.blockPushCodeAddr, this.blockPushCodeReplacement);
+            }
         }else if (age === Age.ADULT){
 
             new AssemblyPointer(0x8007AE8A, 0x8007AE8E).write(this.ModLoader, segment_06 + alias_offset + 0x370);
@@ -169,7 +179,9 @@ class ChildGear implements IPlugin {
             builder.addDE01(evt.adult.pointer + alias_offset + 0x220);
             this.ModLoader.emulator.rdramWriteBuffer(gk + 0x3FC8, builder.toBuffer());
 
-
+            if (this.config.allowChildToUseGauntletBlocks){
+                this.ModLoader.emulator.rdramWriteBuffer(this.blockPushCodeAddr, this.blockPushCodeBackup);
+            }
         }
     }
 
@@ -236,6 +248,10 @@ class ChildGear implements IPlugin {
                 if (this.ModLoader.ImGui.beginMenu("ChildGear")) {
                     if (this.ModLoader.ImGui.menuItem("All items usable as child (caution)", undefined, this.config.unlockItemsAsChild, true)) {
                         this.config.unlockItemsAsChild = !this.config.unlockItemsAsChild;
+                        this.ModLoader.config.save();
+                    }
+                    if (this.ModLoader.ImGui.menuItem("Allow Child to push gauntlet blocks", undefined, this.config.allowChildToUseGauntletBlocks)){
+                        this.config.allowChildToUseGauntletBlocks = !this.config.allowChildToUseGauntletBlocks;
                         this.ModLoader.config.save();
                     }
                     if (this.ModLoader.ImGui.menuItem("Allow Adult to use crawlspaces", undefined, this.config.allowAdultToUseCrawlspace, true)) {
