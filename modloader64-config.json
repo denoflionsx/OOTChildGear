@@ -6,9 +6,9 @@
     "isClient": true,
     "isAnalyticsServer": false,
     "supportedConsoles": [
-      "N64"
+      "Mupen64Plus"
     ],
-    "selectedConsole": "N64",
+    "selectedConsole": "Mupen64Plus",
     "coreOverride": "",
     "disableVIUpdates": false
   },
@@ -19,7 +19,8 @@
     "port": 8082,
     "lobby": "section-wobbly-73",
     "nickname": "Player",
-    "password": ""
+    "password": "",
+    "forceTCPMode": false
   },
   "NetworkEngine.Server": {
     "port": 8082,
@@ -31,7 +32,8 @@
   },
   "ChildGear": {
     "unlockItemsAsChild": true,
-    "allowAdultToUseCrawlspace": true
+    "allowAdultToUseCrawlspace": true,
+    "allowChildToUseGauntletBlocks": false
   },
   "OotOnline": {
     "mapTracker": false,
